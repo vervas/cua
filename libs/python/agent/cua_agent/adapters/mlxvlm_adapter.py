@@ -270,7 +270,9 @@ class MLXVLMAdapter(CustomLLM):
             tokenizer = cast(PreTrainedTokenizer, processor)
 
             # Generate response
-            text_content, usage = generate(
+            # mlx_vlm >= 0.3 returns a GenerationResult; older versions returned a
+            # (text, usage) tuple. Support both.
+            _gen = generate(
                 model,
                 tokenizer,
                 str(prompt),
@@ -278,6 +280,13 @@ class MLXVLMAdapter(CustomLLM):
                 verbose=False,
                 max_tokens=max_tokens,
             )
+            if isinstance(_gen, tuple):
+                text_content, usage = _gen
+            else:
+                text_content = getattr(_gen, "text", None)
+                if text_content is None:
+                    text_content = str(_gen)
+                usage = getattr(_gen, "usage", None)
 
         except Exception as e:
             raise RuntimeError(f"Error generating response: {str(e)}") from e
