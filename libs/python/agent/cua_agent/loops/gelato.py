@@ -173,8 +173,10 @@ class GelatoConfig(AsyncAgentConfig):
 
         # Extract and rescale coordinates
         pred_x, pred_y = extract_coordinates(output_text)  # type: ignore
-        pred_x *= scale_x
-        pred_y *= scale_y
+        # Gelato returns coordinates normalised to [0, 1000], not pixels in the
+        # resized image, so the smart_resize scale factors must not be applied.
+        pred_x = pred_x / 1000.0 * width
+        pred_y = pred_y / 1000.0 * height
 
         return (math.floor(pred_x), math.floor(pred_y))
 
