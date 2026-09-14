@@ -47,6 +47,8 @@ class OperatorNormalizerCallback(AsyncCallbackHandler):
                 action["type"] = "scroll"
             if "text" in action and "type" not in action:
                 action["type"] = "type"
+            if "keys" in action and "type" not in action:
+                action["type"] = "keypress"
 
             action_type = action.get("type")
 
