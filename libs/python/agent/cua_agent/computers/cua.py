@@ -67,11 +67,43 @@ class cuaComputerHandler(AsyncComputerHandler):
         assert self.interface is not None
         await self.interface.right_click(x, y)
 
+    # Roughly one wheel detent per this many pixels of requested scroll.
+    _SCROLL_PIXELS_PER_CLICK = 50
+    # At or below this magnitude, scroll_y is already a number of detents.
+    _SCROLL_DETENT_MAX = 25
+    # Never emit a scroll too small to move the page, or large enough to run away.
+    _SCROLL_MIN_CLICKS = 3
+    _SCROLL_MAX_CLICKS = 30
+
     async def scroll(self, x: int, y: int, scroll_x: int, scroll_y: int) -> None:
-        """Scroll at coordinates with specified scroll amounts."""
+        """Scroll at coordinates with specified scroll amounts.
+
+        `interface.scroll(x, y)` forwards its two arguments to the
+        computer-server as {"x": ..., "y": ...}, which that endpoint does not
+        act on: it answers {"success": true} while the page stays put. Only the
+        detent-based scroll_down / scroll_up commands actually scroll.
+
+        scroll_y also arrives in two incompatible units -- models emit both a
+        small number of wheel notches (3-5) and pixel-like amounts (300-1000) --
+        so small magnitudes are read as detents and larger ones as pixels.
+        Positive scroll_y means scroll down, matching the tool schema.
+        """
         assert self.interface is not None
         await self.interface.move_cursor(x, y)
-        await self.interface.scroll(scroll_x, scroll_y)
+        if not scroll_y:
+            return
+
+        magnitude = abs(scroll_y)
+        if magnitude <= self._SCROLL_DETENT_MAX:
+            clicks = magnitude
+        else:
+            clicks = round(magnitude / self._SCROLL_PIXELS_PER_CLICK)
+        clicks = max(self._SCROLL_MIN_CLICKS, min(self._SCROLL_MAX_CLICKS, clicks))
+
+        if scroll_y > 0:
+            await self.interface.scroll_down(clicks)
+        else:
+            await self.interface.scroll_up(clicks)
 
     async def type(self, text: str) -> None:
         """Type text."""
